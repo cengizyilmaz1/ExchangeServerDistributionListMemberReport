@@ -1,0 +1,64 @@
+<#
+#################################################################################################################
+# Yayınlanma Tarihi: 08.12.2022
+# Version: 1.0
+# Cengiz YILMAZ
+# MCT
+# https://cozumpark.com/author/cengizyilmaz
+# https://cengizyilmaz.net
+# https://msgurusu.com (Azure Blog and News)
+# cengiz@cengizyilmaz.net
+##################################################################################################################
+.NOTES
+# Exchange Server'da aktif çalışan DL içerisindeki üyeleri CSV olarak kaydetmektedir. 
+# Bir DL hesabı belirtmezseniz ortamda aktif çalışan tüm DL hesaplarını rapor vermektedir.
+##################################################################################################################
+
+function Green
+{
+process { Write-Host $_ -ForegroundColor Green }
+}
+#Get distribution group name from user
+$groupName = Read-Host "Enter distribution group name (leave blank for all groups)"
+#If group name is empty, get all groups
+if ($groupName -eq "")
+{
+$groups = Get-DistributionGroup -ResultSize Unlimited
+}
+else
+{
+#Get specified group
+$groups = Get-DistributionGroup -Identity $groupName
+#If group does not exist, show error message and exit
+if ($groups -eq $null)
+{
+Write-Host "Distribution group does not exist" -ForegroundColor Red
+return
+}
+}
+#Create report file
+$report = @()
+#This part will list group memberships and some attributes of members.
+$groups | ForEach-Object {
+$group = $_
+Write-Host "Group: $($group.DisplayName)"
+Get-DistributionGroupMember -Identity $group.Name -ResultSize Unlimited | ForEach-Object {
+Write-Host " Member: $($_.Name)"
+Write-Host " EmailAddress: $($_.PrimarySMTPAddress)"
+Write-Host " RecipientType: $($_.RecipientType)"
+Write-Host ""
+$report += New-Object PSObject -Property @{
+Group = $group.DisplayName
+Member = $_.Name
+EmailAddress = $_.PrimarySMTPAddress
+RecipientType = $_.RecipientType
+}
+}
+}
+#Export report to CSV file
+$report | Export-Csv "C:\DLMember.csv" -NoTypeInformation -Encoding UTF8
+#Check if the export file has been created successfully.
+$Folder = "C:\DLMember.csv" 
+if (Test-Path -Path $Folder) { "Success C:\DLMember.csv"| Green } else {
+"Fail." 
+}
